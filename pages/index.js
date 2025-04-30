@@ -14,28 +14,30 @@ export default function Home() {
 
     // Persist candidate code, selected exams, and extra-time ticks
     useEffect(() => {
+        if (typeof window === 'undefined') return;
         const cat = localStorage.getItem('examCategory') || 'asal';
         setCategory(cat);
 
-        if (typeof window !== 'undefined') {
-            const savedCode = localStorage.getItem('candidateCode');
-            if (savedCode) {
-                setCode(savedCode);
-                fetchExams(savedCode);
+        const savedView = localStorage.getItem('examView') || 'select';
+        setView(savedView);
+
+        const savedCode = localStorage.getItem('candidateCode');
+        if (savedCode) {
+            setCode(savedCode);
+            fetchExams(savedCode);
+        }
+        const savedSubjects = localStorage.getItem('selectedSubjects');
+        if (savedSubjects) {
+            try {
+                setSelected(new Set(JSON.parse(savedSubjects)));
+            } catch {
             }
-            const savedSubjects = localStorage.getItem('selectedSubjects');
-            if (savedSubjects) {
-                try {
-                    setSelected(new Set(JSON.parse(savedSubjects)));
-                } catch {
-                }
-            }
-            const savedET = localStorage.getItem('etSelected');
-            if (savedET) {
-                try {
-                    setEtSelected(JSON.parse(savedET));
-                } catch {
-                }
+        }
+        const savedET = localStorage.getItem('etSelected');
+        if (savedET) {
+            try {
+                setEtSelected(JSON.parse(savedET));
+            } catch {
             }
         }
     }, []);
@@ -43,10 +45,8 @@ export default function Home() {
     useEffect(() => {
         if (typeof window === 'undefined') return;
 
-        // always persist the current candidate code
+        localStorage.setItem('examView', view);
         localStorage.setItem('candidateCode', code);
-
-        // persist the current category and its selections
         localStorage.setItem('examCategory', category);
         localStorage.setItem(
             `selectedSubjects_${category}`,
@@ -56,7 +56,7 @@ export default function Home() {
             `etSelected_${category}`,
             JSON.stringify(etSelected)
         );
-    }, [code, category, selectedSubjects, etSelected]);
+    }, [view, code, category, selectedSubjects, etSelected]);
 
     const fetchExams = (cat, cand) =>
         fetch(`/api/exams?all=true&studentCode=${cand}&category=${cat}`)
@@ -124,12 +124,12 @@ export default function Home() {
 
     return (
         <div className="min-h-screen p-8 bg-gradient-to-br from-blue-100 via-purple-100 to-pink-100">
-            <div className="max-w-7xl mx-auto bg-white bg-opacity-70 backdrop-blur-md rounded-lg p-6 space-y-6">
+            <div className="max-w-7xl mx-auto bg-white bg-opacity-70 backdrop-blur-md rounded-2xl p-6 space-y-6">
 
                 {view === 'select' && (
                     <>
                         <div className="text-center space-y-3">
-                            <h1 className="text-4xl font-bold text-indigo-700">Exam Timetable Beautifier</h1>
+                            <h1 className="text-4xl font-bold text-indigo-700 mt-2">Exam Timetable Beautifier</h1>
                             <h2 className="text-xl font-semibold text-indigo-700">Nithan from SC IT commitee, enjoy!</h2>
                             <div className="flex justify-center gap-4 mb-4">
                                 {['igcse','asal'].map(cat => (
