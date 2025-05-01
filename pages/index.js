@@ -8,24 +8,23 @@ export default function Home() {
     const [selectedSubjects, setSelected] = useState(new Set());
     const [etSelected, setEtSelected] = useState({});
     const [view, setView] = useState('select');
-    const [category, setCategory] = useState('asal');
+    const [category, setCategory] = useState('igcse');
     const cardsRef = useRef(null);
 
     // Persist candidate code, selected exams, extra-time ticks, and view per category
     useEffect(() => {
         if (typeof window === 'undefined') return;
         // load persisted category, view, code, and per-category selections
-        const cat = localStorage.getItem('examCategory') || 'asal';
+        const cat = localStorage.getItem('examCategory') || 'igcse';
         setCategory(cat);
+
+        fetchExams(cat)
+
+        const savedCode = localStorage.getItem('candidateCode') || '';
+        setCode(savedCode);
 
         const savedView = localStorage.getItem('examView') || 'select';
         setView(savedView);
-
-        const savedCode = localStorage.getItem('candidateCode');
-        if (savedCode) {
-            setCode(savedCode);
-            fetchExams(cat, savedCode);
-        }
 
         // per-category selected subjects
         const subjKey = `selectedSubjects_${cat}`;
@@ -62,12 +61,10 @@ export default function Home() {
         );
     }, [code, category, view, selectedSubjects, etSelected]);
 
-    const fetchExams = (cat, cand) =>
-        fetch(`/api/exams?all=true&studentCode=${cand}&category=${cat}`)
+    const fetchExams = (cat) =>
+        fetch(`/api/exams?category=${cat}`)
             .then(r => r.json())
             .then(setAllExams);
-
-    const loadExams = () => fetchExams(category, code);
 
     const grouped = Array.from(new Set(allExams.map(e => e.subject))).sort()
         .reduce((acc, subj) => {
@@ -109,7 +106,7 @@ export default function Home() {
                                         key={cat}
                                         onClick={() => {
                                             setCategory(cat);
-                                            fetchExams(cat, code);
+                                            fetchExams(cat);
                                             // restore their previous ticks for this category:
                                             const ss = localStorage.getItem(`selectedSubjects_${cat}`);
                                             setSelected(ss ? new Set(JSON.parse(ss)) : new Set());
@@ -132,10 +129,6 @@ export default function Home() {
                                     onChange={e => setCode(e.target.value)}
                                     className="w-64 px-4 py-2 bg-white text-gray-800 placeholder-gray-600 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                                 />
-                                <button onClick={loadExams}
-                                        className="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700">Load
-                                    Exams
-                                </button>
                             </div>
                             <p className="text-sm text-gray-700 mt-1">*Candidate number used for exam clashes</p>
                         </div>
@@ -160,8 +153,8 @@ export default function Home() {
                                 ))}
                                 <div className="text-right">
                                     <button onClick={() => setView('cards')}
-                                            className="bg-green-500 text-white px-6 py-2 rounded hover:bg-green-600">Show
-                                        Cards
+                                            className="bg-green-500 text-white px-6 py-2 rounded hover:bg-green-600">
+                                        Show Schedule
                                     </button>
                                 </div>
                             </div>
@@ -204,7 +197,7 @@ export default function Home() {
                                                     {special && (
                                                         <span
                                                             className="bg-red-100 text-red-700 text-xs font-bold px-2 py-1 rounded">
-                            Updated Time
+                            Updated Clash Time
                           </span>
                                                     )}
                                                     {hasET && (
