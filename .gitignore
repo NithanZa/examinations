@@ -42,4 +42,5 @@ next-env.d.ts
 
 .idea/*
 
-data/
+# data folder, uncomment normally unless deploying with vercel
+#data/
