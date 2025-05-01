@@ -33,18 +33,18 @@ export default function handler(req, res) {
         return { h, mm };
     };
 
-    const includeAll = code.trim() === '';
-
     // build events
     const events = [];
     picked.forEach(subj => {
         allExams
             .filter(ex => {
                 if (ex.subject !== subj) return false;
-                if (includeAll) return true; // no code ⇒ include every exam for this subject
-                // otherwise only include those meant for this candidate or default slots
+                if (code.trim() === '') {
+                    return ex.students.length === 0;
+                }
                 return ex.students.includes(code) || ex.students.length === 0;
             })
+
             .forEach(ex => {
                 const d    = new Date(ex.date);
                 const st   = parseTime(ex.start);
