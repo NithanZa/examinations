@@ -1,7 +1,7 @@
 // pages/index.js
-import {useRef, useState, useEffect} from 'react';
-import {createEvents} from 'ics';
-import {ArrowLeft, Calendar, Clock, MapPin} from 'lucide-react';
+import { useRef, useState, useEffect } from 'react';
+import { createEvents } from 'ics';
+import { ArrowLeft, Calendar, Clock, MapPin } from 'lucide-react';
 
 export default function Home() {
     const [code, setCode] = useState('');
@@ -9,12 +9,13 @@ export default function Home() {
     const [selectedSubjects, setSelected] = useState(new Set());
     const [etSelected, setEtSelected] = useState({});
     const [view, setView] = useState('select');
-    const cardsRef = useRef(null);
     const [category, setCategory] = useState('asal');
+    const cardsRef = useRef(null);
 
-    // Persist candidate code, selected exams, and extra-time ticks
+    // Persist candidate code, selected exams, extra-time ticks, and view per category
     useEffect(() => {
         if (typeof window === 'undefined') return;
+        // load persisted category, view, code, and per-category selections
         const cat = localStorage.getItem('examCategory') || 'asal';
         setCategory(cat);
 
@@ -24,30 +25,34 @@ export default function Home() {
         const savedCode = localStorage.getItem('candidateCode');
         if (savedCode) {
             setCode(savedCode);
-            fetchExams(savedCode);
+            fetchExams(cat, savedCode);
         }
-        const savedSubjects = localStorage.getItem('selectedSubjects');
+
+        // per-category selected subjects
+        const subjKey = `selectedSubjects_${cat}`;
+        const savedSubjects = localStorage.getItem(subjKey);
         if (savedSubjects) {
             try {
                 setSelected(new Set(JSON.parse(savedSubjects)));
-            } catch {
-            }
+            } catch {}
         }
-        const savedET = localStorage.getItem('etSelected');
+
+        // per-category extra-time flags
+        const etKey = `etSelected_${cat}`;
+        const savedET = localStorage.getItem(etKey);
         if (savedET) {
             try {
                 setEtSelected(JSON.parse(savedET));
-            } catch {
-            }
+            } catch {}
         }
     }, []);
 
     useEffect(() => {
         if (typeof window === 'undefined') return;
-
-        localStorage.setItem('examView', view);
+        // persist code, category, view, selections, and extra-time
         localStorage.setItem('candidateCode', code);
         localStorage.setItem('examCategory', category);
+        localStorage.setItem('examView', view);
         localStorage.setItem(
             `selectedSubjects_${category}`,
             JSON.stringify(Array.from(selectedSubjects))
@@ -56,7 +61,7 @@ export default function Home() {
             `etSelected_${category}`,
             JSON.stringify(etSelected)
         );
-    }, [view, code, category, selectedSubjects, etSelected]);
+    }, [code, category, view, selectedSubjects, etSelected]);
 
     const fetchExams = (cat, cand) =>
         fetch(`/api/exams?all=true&studentCode=${cand}&category=${cat}`)
@@ -69,7 +74,7 @@ export default function Home() {
         .reduce((acc, subj) => {
             const key = subj.split(' ')[0];
             const grp = acc.find(g => g.key === key);
-            grp ? grp.items.push(subj) : acc.push({key, items: [subj]});
+            grp ? grp.items.push(subj) : acc.push({ key, items: [subj] });
             return acc;
         }, []);
 
@@ -80,16 +85,18 @@ export default function Home() {
     });
 
     const parseTime = str => {
-        const m = /^([0-9]{1,2})\.([0-9]{2})(am|pm)$/i.exec(str) || [];
+        const m = /^([0-9]{1,2})\.(\d{2})(am|pm)$/i.exec(str) || [];
         let h = +m[1], mm = +m[2], p = m[3]?.toLowerCase();
         if (p === 'pm' && h < 12) h += 12;
         if (p === 'am' && h === 12) h = 0;
-        return {h, mm};
+        return { h, mm };
     };
 
     const getExams = subj => {
         const special = allExams.filter(e => e.subject === subj && e.students.includes(code));
-        return special.length ? special : allExams.filter(e => e.subject === subj && e.students.length === 0);
+        return special.length
+            ? special
+            : allExams.filter(e => e.subject === subj && e.students.length === 0);
     };
 
     const hasAnySpecial = Array.from(selectedSubjects).some(subj =>
@@ -108,13 +115,14 @@ export default function Home() {
                     title: ex.subject,
                     start: [d.getFullYear(), d.getMonth() + 1, d.getDate(), st.h, st.mm],
                     end: [d.getFullYear(), d.getMonth() + 1, d.getDate(), en.h, en.mm],
-                    location: ex.venue, description: ex.code
+                    location: ex.venue,
+                    description: ex.code
                 });
             });
         });
         createEvents(events, (err, value) => {
             if (err) return;
-            const blob = new Blob([value], {type: 'text/calendar'});
+            const blob = new Blob([value], { type: 'text/calendar' });
             const link = document.createElement('a');
             link.href = URL.createObjectURL(blob);
             link.download = 'exams.ics';
