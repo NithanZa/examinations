@@ -278,7 +278,7 @@ export default function Home() {
                             onChange={e => setDetailsAcked(e.target.checked)}
                             className="h-5 w-5 text-indigo-600"
                         />
-                        <span className="text-gray-800">I will verify from the sent email that all exam information are correct.</span>
+                        <span className="text-gray-800">I will verify that all exam information are correct from the sent email</span>
                     </label>
                     <label className="inline-flex items-center space-x-2 mb-2">
                         <div className="inline-flex items-center space-x-2 mb-4">
