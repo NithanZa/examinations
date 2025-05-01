@@ -1,6 +1,5 @@
 // pages/index.js
 import { useRef, useState, useEffect } from 'react';
-import { createEvents } from 'ics';
 import { ArrowLeft, Calendar, Clock, MapPin } from 'lucide-react';
 
 export default function Home() {
@@ -84,14 +83,6 @@ export default function Home() {
         return nxt;
     });
 
-    const parseTime = str => {
-        const m = /^([0-9]{1,2})\.(\d{2})(am|pm)$/i.exec(str) || [];
-        let h = +m[1], mm = +m[2], p = m[3]?.toLowerCase();
-        if (p === 'pm' && h < 12) h += 12;
-        if (p === 'am' && h === 12) h = 0;
-        return { h, mm };
-    };
-
     const getExams = subj => {
         const special = allExams.filter(e => e.subject === subj && e.students.includes(code));
         return special.length
@@ -102,33 +93,6 @@ export default function Home() {
     const hasAnySpecial = Array.from(selectedSubjects).some(subj =>
         allExams.some(e => e.subject === subj && e.students.includes(code))
     );
-
-    const downloadICS = () => {
-        const events = [];
-        selectedSubjects.forEach(subj => {
-            getExams(subj).forEach(ex => {
-                const d = new Date(ex.date);
-                const st = parseTime(ex.start);
-                const enT = etSelected[ex.id] && ex.etFinish ? ex.etFinish : ex.finish;
-                const en = parseTime(enT);
-                events.push({
-                    title: ex.subject,
-                    start: [d.getFullYear(), d.getMonth() + 1, d.getDate(), st.h, st.mm],
-                    end: [d.getFullYear(), d.getMonth() + 1, d.getDate(), en.h, en.mm],
-                    location: ex.venue,
-                    description: ex.code
-                });
-            });
-        });
-        createEvents(events, (err, value) => {
-            if (err) return;
-            const blob = new Blob([value], { type: 'text/calendar' });
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(blob);
-            link.download = 'exams.ics';
-            link.click();
-        });
-    };
 
     return (
         <div className="min-h-screen p-8 bg-gradient-to-br from-blue-100 via-purple-100 to-pink-100">
@@ -271,10 +235,15 @@ export default function Home() {
                             any responsibility for any errors in the data. Please verify all details are fully
                             correct.</p>
                         <div className="mt-6 flex justify-center gap-4">
-                            <button onClick={downloadICS}
-                                    className="bg-purple-600 text-white px-6 py-2 rounded hover:bg-purple-700">Export to
-                                Calendar
-                            </button>
+                            {/* Replace your old button with this anchor */}
+                            <a
+                                href="/subscribe"
+                                className="bg-purple-600 text-white px-6 py-2 rounded hover:bg-purple-700"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                            >
+                                Add to Calendar
+                            </a>
                         </div>
                     </>
                 )}
