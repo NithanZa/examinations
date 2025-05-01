@@ -259,7 +259,7 @@ export default function Home() {
                                         target="_blank"
                                         rel="noopener noreferrer"
                                     >
-                                        Add to Calendar
+                                        Add to Google/Apple Calendar
                                     </a>
                                 </div>
                             </>
