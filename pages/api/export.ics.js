@@ -67,8 +67,13 @@ export default function handler(req, res) {
             console.error(error);
             return res.status(500).send('Error generating calendar');
         }
+
+        const localIcs = ics
+            .replace(/^DTSTART:(\d+)Z/mg,  'DTSTART:$1')
+            .replace(/^DTEND:(\d+)Z/mg,    'DTEND:$1');
+
         res.setHeader('Content-Type',        'text/calendar; charset=utf-8');
         res.setHeader('Content-Disposition', 'inline; filename="exams.ics"');
-        res.status(200).send(ics);
+        res.status(200).send(localIcs);
     });
 }
