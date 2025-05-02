@@ -33,7 +33,7 @@ export default function handler(req, res) {
         return { h, mm };
     };
 
-    // Build ICS events with Asia/Bangkok timezone and correct date
+    // Build ICS events with local times
     const events = [];
     picked.forEach(subj => {
         allExams
@@ -44,24 +44,20 @@ export default function handler(req, res) {
                     : ex.students.includes(code) || ex.students.length === 0)
             )
             .forEach(ex => {
-                const d = new Date(ex.date);
-                const st = parseTime(ex.start);
+                const d     = new Date(ex.date);
+                const st    = parseTime(ex.start);
                 const useET = etMap[ex.id] && ex.etFinish;
-                const fin = useET ? ex.etFinish : ex.finish;
-                const en = parseTime(fin);
-
-                // Adjust date forward by one to correct Apple Calendar off-by-one
-                const correctDay = d.getDate() + 1;
+                const fin   = useET ? ex.etFinish : ex.finish;
+                const en    = parseTime(fin);
 
                 events.push({
-                    title:       ex.subject,
-                    start:       [d.getFullYear(), d.getMonth() + 1, correctDay, st.h,  st.mm],
-                    end:         [d.getFullYear(), d.getMonth() + 1, correctDay, en.h,   en.mm],
-                    location:    ex.venue,
-                    description: ex.code,
+                    title:          ex.subject,
+                    description:    ex.code,
+                    location:       ex.venue,
+                    start:          [d.getFullYear(), d.getMonth() + 1, d.getDate(), st.h,  st.mm],
+                    end:            [d.getFullYear(), d.getMonth() + 1, d.getDate(), en.h,   en.mm],
                     startInputType: 'local',
-                    endInputType:   'local',
-                    tzid:        'Asia/Bangkok'
+                    endInputType:   'local'
                 });
             });
     });
@@ -87,13 +83,17 @@ export default function handler(req, res) {
             'END:VTIMEZONE',
         ].join('\r\n');
 
-        // Inject timezone block after CALSCALE
+        // Inject timezone block after CALSCALE line
         let output = ics.replace(
             /CALSCALE:GREGORIAN/,
             'CALSCALE:GREGORIAN\r\n' + tzBlock
         );
 
-        // No additional replaces needed since createEvents will use tzid
+        // Tag local times with Bangkok tz identifier
+        output = output
+            .replace(/^DTSTART:(\d{8}T\d{6})$/gm, 'DTSTART;TZID=Asia/Bangkok:$1')
+            .replace(/^DTEND:(\d{8}T\d{6})$/gm,   'DTEND;TZID=Asia/Bangkok:$1');
+
         res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
         res.setHeader('Content-Disposition', 'inline; filename="exams.ics"');
         res.status(200).send(output);
