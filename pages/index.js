@@ -1,9 +1,13 @@
 // pages/index.js
-import {useRef, useState, useEffect} from 'react';
+import {useEffect, useRef, useState} from 'react';
 import {ArrowLeft, Calendar, Clock, MapPin} from 'lucide-react';
 
 export default function Home() {
-    const [acknowledged, setAcknowledged] = useState(false);
+    // acknowledgement for details
+    const [detailsAcked, setDetailsAcked] = useState(false);
+
+    // acknowledgement for full centre supervision not being included
+    const [fcsAcked, setFcsAcked] = useState(false);
     const [ackSubmitted, setAckSubmitted] = useState(false);
 
     useEffect(() => {
@@ -255,7 +259,7 @@ export default function Home() {
                                         target="_blank"
                                         rel="noopener noreferrer"
                                     >
-                                        Add to Calendar
+                                        Add to Google/Apple Calendar
                                     </a>
                                 </div>
                             </>
@@ -266,26 +270,35 @@ export default function Home() {
 
             {!ackSubmitted && (
                 <div className="min-h-screen flex flex-col justify-center items-center bg-gray-50 p-6">
-                    <h2 className="text-2xl font-semibold mb-4 text-amber-200">Before you continue…</h2>
-                    <label className="inline-flex items-center space-x-2 mb-4">
+                    <h2 className="text-2xl font-semibold mb-4 text-blue-500">This website generates your exams timetable, before you begin</h2>
+                    <label className="inline-flex items-center space-x-2 mb-2">
                         <input
                             type="checkbox"
-                            checked={acknowledged}
-                            onChange={e => setAcknowledged(e.target.checked)}
+                            checked={detailsAcked}
+                            onChange={e => setDetailsAcked(e.target.checked)}
                             className="h-5 w-5 text-indigo-600"
                         />
-                        <span className="text-gray-800">
-                    I confirm I’ve verified all details and understand this is my responsibility.
-                </span>
+                        <span className="text-gray-800">I will verify that all exam information are correct from the sent email</span>
+                    </label>
+                    <label className="inline-flex items-center space-x-2 mb-2">
+                        <div className="inline-flex items-center space-x-2 mb-4">
+                            <input
+                                type="checkbox"
+                                checked={fcsAcked}
+                                onChange={e => setFcsAcked(e.target.checked)}
+                                className="h-5 w-5 text-indigo-600"
+                            />
+                            <span className="text-gray-800">I acknowledge that if I have a clash, exam time will be updated but FCS will not be included</span>
+                        </div>
                     </label>
                     <button
                         onClick={() => {
                             setAckSubmitted(true)
                             localStorage.setItem('acknowledged', 'true')
                         }}
-                        disabled={!acknowledged}
+                        disabled={!(detailsAcked && fcsAcked)}
                         className={`px-6 py-2 rounded ${
-                            acknowledged
+                            detailsAcked && fcsAcked
                                 ? 'bg-indigo-600 text-white hover:bg-indigo-700'
                                 : 'bg-gray-300 text-gray-600 cursor-not-allowed'
                         }`}
