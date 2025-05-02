@@ -67,8 +67,32 @@ export default function handler(req, res) {
             console.error(error);
             return res.status(500).send('Error generating calendar');
         }
+
+        const tzBlock = [
+            'BEGIN:VTIMEZONE',
+            'TZID:Asia/Bangkok',
+            'X-LIC-LOCATION:Asia/Bangkok',
+            'BEGIN:STANDARD',
+            'TZOFFSETFROM:+0700',
+            'TZOFFSETTO:+0700',
+            'TZNAME:ICT',
+            'DTSTART:19700101T000000',
+            'END:STANDARD',
+            'END:VTIMEZONE',
+        ].join('\r\n');
+
+        let localIcs = ics.replace(
+            'X-PUBLISHED-TTL:PT1H',
+            'X-PUBLISHED-TTL:PT1H\r\n' + tzBlock
+        );
+
+        // Convert UTC times to floating local times with TZID
+        localIcs = localIcs
+            .replace(/^DTSTART:(\d+)Z/gm,  'DTSTART;TZID=Asia/Bangkok:$1')
+            .replace(/^DTEND:(\d+)Z/gm,    'DTEND;TZID=Asia/Bangkok:$1');
+
         res.setHeader('Content-Type',        'text/calendar; charset=utf-8');
         res.setHeader('Content-Disposition', 'inline; filename="exams.ics"');
-        res.status(200).send(ics);
+        res.status(200).send(localIcs);
     });
 }
