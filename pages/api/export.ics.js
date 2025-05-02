@@ -6,14 +6,14 @@ import { createEvents } from 'ics';
 export default function handler(req, res) {
     const { code = '', category = 'asal', subjects = '[]', et = '{}' } = req.query;
 
-    // Load exams JSON
+    // Load exams data
     const filePath = path.join(process.cwd(), 'data', `${category}.json`);
     if (!fs.existsSync(filePath)) {
         return res.status(404).send('No exam data for this category');
     }
     const allExams = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
 
-    // Parse selected subjects and extra-time map
+    // Parse input parameters
     let picked, etMap;
     try {
         picked = JSON.parse(subjects);
@@ -22,7 +22,7 @@ export default function handler(req, res) {
         return res.status(400).send('Invalid subjects or et parameter');
     }
 
-    // Helper to convert "9.30am" into { h, mm }
+    // Helper: parse "9.30am" into hours/minutes
     const parseTime = str => {
         const m = /^([0-9]{1,2})\.(\d{2})(am|pm)$/i.exec(str) || [];
         let h = +m[1] || 0;
@@ -33,22 +33,21 @@ export default function handler(req, res) {
         return { h, mm };
     };
 
-    // Build ICS events with local times (no UTC conversion)
+    // Build events array with local (floating) times
     const events = [];
     picked.forEach(subj => {
         allExams
-            .filter(ex =>
-                ex.subject === subj &&
-                (code.trim() === ''
+            .filter(ex => {
+                if (ex.subject !== subj) return false;
+                return code.trim() === ''
                     ? ex.students.length === 0
-                    : ex.students.includes(code) || ex.students.length === 0)
-            )
+                    : ex.students.includes(code) || ex.students.length === 0;
+            })
             .forEach(ex => {
-                const d     = new Date(ex.date);
-                const st    = parseTime(ex.start);
-                const useET = etMap[ex.id] && ex.etFinish;
-                const fin   = useET ? ex.etFinish : ex.finish;
-                const en    = parseTime(fin);
+                const d = new Date(ex.date);
+                const st = parseTime(ex.start);
+                const finStr = (etMap[ex.id] && ex.etFinish) ? ex.etFinish : ex.finish;
+                const en = parseTime(finStr);
 
                 events.push({
                     title:       ex.subject,
@@ -57,7 +56,7 @@ export default function handler(req, res) {
                     location:    ex.venue,
                     description: ex.code,
                     startInputType: 'local',
-                    endInputType:   'local',
+                    endInputType:   'local'
                 });
             });
     });
@@ -69,7 +68,7 @@ export default function handler(req, res) {
             return res.status(500).send('Error generating calendar');
         }
 
-        // VTIMEZONE block for Asia/Bangkok
+        // VTIMEZONE block for Bangkok
         const tzBlock = [
             'BEGIN:VTIMEZONE',
             'TZID:Asia/Bangkok',
@@ -80,16 +79,16 @@ export default function handler(req, res) {
             'TZOFFSETTO:+0700',
             'TZNAME:ICT',
             'END:STANDARD',
-            'END:VTIMEZONE',
+            'END:VTIMEZONE'
         ].join('\r\n');
 
-        // Insert timezone block after the CALSCALE line
+        // Inject timezone block after CALSCALE
         let output = ics.replace(
             /CALSCALE:GREGORIAN/,
             'CALSCALE:GREGORIAN\r\n' + tzBlock
         );
 
-        // Tag floating local times with TZID
+        // Tag floating times with TZID
         output = output
             .replace(/^DTSTART:(\d{8}T\d{6})$/gm, 'DTSTART;TZID=Asia/Bangkok:$1')
             .replace(/^DTEND:(\d{8}T\d{6})$/gm,   'DTEND;TZID=Asia/Bangkok:$1');
