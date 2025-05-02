@@ -33,7 +33,7 @@ export default function handler(req, res) {
         return { h, mm };
     };
 
-    // Build ICS events with local times
+    // Build ICS events with local times (no UTC) and shift each date by 1
     const events = [];
     picked.forEach(subj => {
         allExams
@@ -44,7 +44,10 @@ export default function handler(req, res) {
                     : ex.students.includes(code) || ex.students.length === 0)
             )
             .forEach(ex => {
-                const d     = new Date(ex.date);
+                // Parse date and shift one day forward
+                const d = new Date(ex.date);
+                d.setDate(d.getDate() + 1);
+
                 const st    = parseTime(ex.start);
                 const useET = etMap[ex.id] && ex.etFinish;
                 const fin   = useET ? ex.etFinish : ex.finish;
@@ -52,10 +55,10 @@ export default function handler(req, res) {
 
                 events.push({
                     title:          ex.subject,
-                    description:    ex.code,
-                    location:       ex.venue,
                     start:          [d.getFullYear(), d.getMonth() + 1, d.getDate(), st.h,  st.mm],
                     end:            [d.getFullYear(), d.getMonth() + 1, d.getDate(), en.h,   en.mm],
+                    location:       ex.venue,
+                    description:    ex.code,
                     startInputType: 'local',
                     endInputType:   'local',
                 });
@@ -69,7 +72,7 @@ export default function handler(req, res) {
             return res.status(500).send('Error generating calendar');
         }
 
-        // Calendar-level timezone settings
+        // VTIMEZONE block for Asia/Bangkok
         const tzBlock = [
             'BEGIN:VTIMEZONE',
             'TZID:Asia/Bangkok',
@@ -83,16 +86,16 @@ export default function handler(req, res) {
             'END:VTIMEZONE',
         ].join('\r\n');
 
-        // Inject calendar-level timezone and tz block after CALSCALE
+        // Insert timezone block after CALSCALE line
         let output = ics.replace(
             /CALSCALE:GREGORIAN/,
-            'CALSCALE:GREGORIAN\r\nX-WR-TIMEZONE:Asia/Bangkok\r\n' + tzBlock
+            'CALSCALE:GREGORIAN\r\n' + tzBlock
         );
 
-        // Tag local event times with timezone identifier
+        // Replace UTC timestamps with local times tagged Asia/Bangkok
         output = output
-            .replace(/^DTSTART:(\d{8}T\d{6})$/gm, 'DTSTART;TZID=Asia/Bangkok:$1')
-            .replace(/^DTEND:(\d{8}T\d{6})$/gm,   'DTEND;TZID=Asia/Bangkok:$1');
+            .replace(/^DTSTART:(\d{8}T\d{6})Z/gm, 'DTSTART;TZID=Asia/Bangkok:$1')
+            .replace(/^DTEND:(\d{8}T\d{6})Z/gm,   'DTEND;TZID=Asia/Bangkok:$1');
 
         res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
         res.setHeader('Content-Disposition', 'inline; filename="exams.ics"');
