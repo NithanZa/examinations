@@ -13,7 +13,7 @@ export default function handler(req, res) {
     }
     const allExams = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
 
-    // Parse subjects and extra-time map
+    // Parse selected subjects and extra-time map
     let picked, etMap;
     try {
         picked = JSON.parse(subjects);
@@ -22,7 +22,7 @@ export default function handler(req, res) {
         return res.status(400).send('Invalid subjects or et parameter');
     }
 
-    // Parse time strings like "9.30am"
+    // Helper to convert "9.30am" into { h, mm }
     const parseTime = str => {
         const m = /^([0-9]{1,2})\.(\d{2})(am|pm)$/i.exec(str) || [];
         let h = +m[1] || 0;
@@ -33,11 +33,12 @@ export default function handler(req, res) {
         return { h, mm };
     };
 
-    // Build events with floating (local) times
+    // Build ICS events with local times (no UTC)
     const events = [];
     picked.forEach(subj => {
         allExams
-            .filter(ex => ex.subject === subj &&
+            .filter(ex =>
+                ex.subject === subj &&
                 (code.trim() === ''
                     ? ex.students.length === 0
                     : ex.students.includes(code) || ex.students.length === 0)
@@ -51,12 +52,10 @@ export default function handler(req, res) {
 
                 events.push({
                     title:       ex.subject,
-                    start:       [d.getFullYear(), d.getMonth()+1, d.getDate(), st.h, st.mm],
-                    end:         [d.getFullYear(), d.getMonth()+1, d.getDate(), en.h,   en.mm],
+                    start:       [d.getFullYear(), d.getMonth() + 1, d.getDate(), st.h,  st.mm],
+                    end:         [d.getFullYear(), d.getMonth() + 1, d.getDate(), en.h,   en.mm],
                     location:    ex.venue,
                     description: ex.code,
-                    startInputType: 'local',
-                    endInputType:   'local'
                 });
             });
     });
@@ -68,7 +67,7 @@ export default function handler(req, res) {
             return res.status(500).send('Error generating calendar');
         }
 
-        // VTIMEZONE block for Asia/Bangkok (no DST)
+        // VTIMEZONE block for Asia/Bangkok
         const tzBlock = [
             'BEGIN:VTIMEZONE',
             'TZID:Asia/Bangkok',
@@ -82,19 +81,19 @@ export default function handler(req, res) {
             'END:VTIMEZONE',
         ].join('\r\n');
 
-        // Insert timezone block after VERSION
+        // Insert timezone block after CALSCALE line
         let output = ics.replace(
-            /VERSION:2.0/,
-            'VERSION:2.0\r\n' + tzBlock
+            /CALSCALE:GREGORIAN/,
+            'CALSCALE:GREGORIAN\r\n' + tzBlock
         );
 
-        // Tag event times with TZID
+        // Replace UTC timestamps with local times tagged Asia/Bangkok
         output = output
-            .replace(/^DTSTART:(\d{8}T\d{6})$/gm, 'DTSTART;TZID=Asia/Bangkok:$1')
-            .replace(/^DTEND:(\d{8}T\d{6})$/gm,   'DTEND;TZID=Asia/Bangkok:$1');
+            .replace(/^DTSTART:(\d{8}T\d{6})Z/gm, 'DTSTART;TZID=Asia/Bangkok:$1')
+            .replace(/^DTEND:(\d{8}T\d{6})Z/gm,   'DTEND;TZID=Asia/Bangkok:$1');
 
         res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
         res.setHeader('Content-Disposition', 'inline; filename="exams.ics"');
-        return res.status(200).send(output);
+        res.status(200).send(output);
     });
 }
