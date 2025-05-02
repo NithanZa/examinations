@@ -57,7 +57,7 @@ export default function handler(req, res) {
                     start:          [d.getFullYear(), d.getMonth() + 1, d.getDate(), st.h,  st.mm],
                     end:            [d.getFullYear(), d.getMonth() + 1, d.getDate(), en.h,   en.mm],
                     startInputType: 'local',
-                    endInputType:   'local'
+                    endInputType:   'local',
                 });
             });
     });
@@ -69,7 +69,7 @@ export default function handler(req, res) {
             return res.status(500).send('Error generating calendar');
         }
 
-        // VTIMEZONE block for Asia/Bangkok
+        // Calendar-level timezone settings
         const tzBlock = [
             'BEGIN:VTIMEZONE',
             'TZID:Asia/Bangkok',
@@ -83,13 +83,13 @@ export default function handler(req, res) {
             'END:VTIMEZONE',
         ].join('\r\n');
 
-        // Inject timezone block after CALSCALE line
+        // Inject calendar-level timezone and tz block after CALSCALE
         let output = ics.replace(
             /CALSCALE:GREGORIAN/,
-            'CALSCALE:GREGORIAN\r\n' + tzBlock
+            'CALSCALE:GREGORIAN\r\nX-WR-TIMEZONE:Asia/Bangkok\r\n' + tzBlock
         );
 
-        // Tag local times with Bangkok tz identifier
+        // Tag local event times with timezone identifier
         output = output
             .replace(/^DTSTART:(\d{8}T\d{6})$/gm, 'DTSTART;TZID=Asia/Bangkok:$1')
             .replace(/^DTEND:(\d{8}T\d{6})$/gm,   'DTEND;TZID=Asia/Bangkok:$1');
