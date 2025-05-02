@@ -6,14 +6,14 @@ import { createEvents } from 'ics';
 export default function handler(req, res) {
     const { code = '', category = 'asal', subjects = '[]', et = '{}' } = req.query;
 
-    // Load exams data
+    // Load exams JSON
     const filePath = path.join(process.cwd(), 'data', `${category}.json`);
     if (!fs.existsSync(filePath)) {
         return res.status(404).send('No exam data for this category');
     }
     const allExams = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
 
-    // Parse input parameters
+    // Parse selected subjects and extra-time map
     let picked, etMap;
     try {
         picked = JSON.parse(subjects);
@@ -22,7 +22,7 @@ export default function handler(req, res) {
         return res.status(400).send('Invalid subjects or et parameter');
     }
 
-    // Helper: parse "9.30am" into hours/minutes
+    // Helper to convert "9.30am" into { h, mm }
     const parseTime = str => {
         const m = /^([0-9]{1,2})\.(\d{2})(am|pm)$/i.exec(str) || [];
         let h = +m[1] || 0;
@@ -33,30 +33,35 @@ export default function handler(req, res) {
         return { h, mm };
     };
 
-    // Build events array with local (floating) times
+    // Build ICS events with Asia/Bangkok timezone and correct date
     const events = [];
     picked.forEach(subj => {
         allExams
-            .filter(ex => {
-                if (ex.subject !== subj) return false;
-                return code.trim() === ''
+            .filter(ex =>
+                ex.subject === subj &&
+                (code.trim() === ''
                     ? ex.students.length === 0
-                    : ex.students.includes(code) || ex.students.length === 0;
-            })
+                    : ex.students.includes(code) || ex.students.length === 0)
+            )
             .forEach(ex => {
                 const d = new Date(ex.date);
                 const st = parseTime(ex.start);
-                const finStr = (etMap[ex.id] && ex.etFinish) ? ex.etFinish : ex.finish;
-                const en = parseTime(finStr);
+                const useET = etMap[ex.id] && ex.etFinish;
+                const fin = useET ? ex.etFinish : ex.finish;
+                const en = parseTime(fin);
+
+                // Adjust date forward by one to correct Apple Calendar off-by-one
+                const correctDay = d.getDate() + 1;
 
                 events.push({
                     title:       ex.subject,
-                    start:       [d.getFullYear(), d.getMonth() + 1, d.getDate(), st.h,  st.mm],
-                    end:         [d.getFullYear(), d.getMonth() + 1, d.getDate(), en.h,   en.mm],
+                    start:       [d.getFullYear(), d.getMonth() + 1, correctDay, st.h,  st.mm],
+                    end:         [d.getFullYear(), d.getMonth() + 1, correctDay, en.h,   en.mm],
                     location:    ex.venue,
                     description: ex.code,
                     startInputType: 'local',
-                    endInputType:   'local'
+                    endInputType:   'local',
+                    tzid:        'Asia/Bangkok'
                 });
             });
     });
@@ -68,7 +73,7 @@ export default function handler(req, res) {
             return res.status(500).send('Error generating calendar');
         }
 
-        // VTIMEZONE block for Bangkok
+        // VTIMEZONE block for Asia/Bangkok
         const tzBlock = [
             'BEGIN:VTIMEZONE',
             'TZID:Asia/Bangkok',
@@ -79,7 +84,7 @@ export default function handler(req, res) {
             'TZOFFSETTO:+0700',
             'TZNAME:ICT',
             'END:STANDARD',
-            'END:VTIMEZONE'
+            'END:VTIMEZONE',
         ].join('\r\n');
 
         // Inject timezone block after CALSCALE
@@ -88,11 +93,7 @@ export default function handler(req, res) {
             'CALSCALE:GREGORIAN\r\n' + tzBlock
         );
 
-        // Tag floating times with TZID
-        output = output
-            .replace(/^DTSTART:(\d{8}T\d{6})$/gm, 'DTSTART;TZID=Asia/Bangkok:$1')
-            .replace(/^DTEND:(\d{8}T\d{6})$/gm,   'DTEND;TZID=Asia/Bangkok:$1');
-
+        // No additional replaces needed since createEvents will use tzid
         res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
         res.setHeader('Content-Disposition', 'inline; filename="exams.ics"');
         res.status(200).send(output);
