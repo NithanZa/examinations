@@ -33,7 +33,7 @@ export default function handler(req, res) {
         return { h, mm };
     };
 
-    // Build ICS events with local times (no UTC)
+    // Build ICS events with local times (no UTC conversion)
     const events = [];
     picked.forEach(subj => {
         allExams
@@ -56,6 +56,8 @@ export default function handler(req, res) {
                     end:         [d.getFullYear(), d.getMonth() + 1, d.getDate(), en.h,   en.mm],
                     location:    ex.venue,
                     description: ex.code,
+                    startInputType: 'local',
+                    endInputType:   'local',
                 });
             });
     });
@@ -81,16 +83,16 @@ export default function handler(req, res) {
             'END:VTIMEZONE',
         ].join('\r\n');
 
-        // Insert timezone block after CALSCALE line
+        // Insert timezone block after the CALSCALE line
         let output = ics.replace(
             /CALSCALE:GREGORIAN/,
             'CALSCALE:GREGORIAN\r\n' + tzBlock
         );
 
-        // Replace UTC timestamps with local times tagged Asia/Bangkok
+        // Tag floating local times with TZID
         output = output
-            .replace(/^DTSTART:(\d{8}T\d{6})Z/gm, 'DTSTART;TZID=Asia/Bangkok:$1')
-            .replace(/^DTEND:(\d{8}T\d{6})Z/gm,   'DTEND;TZID=Asia/Bangkok:$1');
+            .replace(/^DTSTART:(\d{8}T\d{6})$/gm, 'DTSTART;TZID=Asia/Bangkok:$1')
+            .replace(/^DTEND:(\d{8}T\d{6})$/gm,   'DTEND;TZID=Asia/Bangkok:$1');
 
         res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
         res.setHeader('Content-Disposition', 'inline; filename="exams.ics"');
