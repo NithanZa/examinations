@@ -30,15 +30,6 @@ export default function Subscribe() {
         setApiUrl(url);
     }, []);
 
-    const copyToClipboard = async () => {
-        try {
-            await navigator.clipboard.writeText(apiUrl);
-            alert('Calendar URL copied!');
-        } catch {
-            alert('Copy failed');
-        }
-    };
-
     return (
         <div className="min-h-screen p-8 bg-gradient-to-br from-blue-50 to-purple-50 text-indigo-900">
             <div className="max-w-xl mx-auto bg-white p-6 rounded-lg shadow">
@@ -74,25 +65,7 @@ export default function Subscribe() {
 
                 <section>
                     <h2 className="text-lg font-semibold mb-2">iPhone / iPad (Subscribe)</h2>
-                    <ol className="list-decimal list-inside space-y-1 mb-3">
-                        <li>Settings → Calendar → Accounts → Add Account → Other.</li>
-                        <li>Tap “Add Subscribed Calendar.”</li>
-                        <li>Paste the ICS URL below → Next → Save.</li>
-                    </ol>
-                    <div className="flex max-w-xl">
-                        <input
-                            type="text"
-                            readOnly
-                            value={apiUrl}
-                            className="flex-1 px-3 py-2 border rounded-l"
-                        />
-                        <button
-                            onClick={copyToClipboard}
-                            className="bg-gray-200 px-4 rounded-r hover:bg-gray-300"
-                        >
-                            Copy
-                        </button>
-                    </div>
+                    <p>Just press download file and it automatically does it</p>
                 </section>
             </div>
         </div>
